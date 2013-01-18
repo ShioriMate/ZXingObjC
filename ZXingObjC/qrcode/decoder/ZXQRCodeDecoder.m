@@ -110,21 +110,25 @@
     totalBytes += dataBlock.numDataCodewords;
   }
 
-  unsigned char resultBytes[totalBytes];
-  int resultOffset = 0;
-
-  for (ZXQRCodeDataBlock *dataBlock in dataBlocks) {
-    NSMutableArray * codewordBytes = [dataBlock codewords];
-    int numDataCodewords = [dataBlock numDataCodewords];
-    if (![self correctErrors:codewordBytes numDataCodewords:numDataCodewords error:error]) {
-      return nil;
+  if ( totalBytes > 0 ) {
+    unsigned char resultBytes[totalBytes];
+    int resultOffset = 0;
+    
+    for (ZXQRCodeDataBlock *dataBlock in dataBlocks) {
+      NSMutableArray * codewordBytes = [dataBlock codewords];
+      int numDataCodewords = [dataBlock numDataCodewords];
+      if (![self correctErrors:codewordBytes numDataCodewords:numDataCodewords error:error]) {
+        return nil;
+      }
+      for (int i = 0; i < numDataCodewords; i++) {
+        resultBytes[resultOffset++] = [[codewordBytes objectAtIndex:i] charValue];
+      }
     }
-    for (int i = 0; i < numDataCodewords; i++) {
-      resultBytes[resultOffset++] = [[codewordBytes objectAtIndex:i] charValue];
-    }
+    
+    return [ZXQRCodeDecodedBitStreamParser decode:resultBytes length:totalBytes version:version ecLevel:ecLevel hints:hints error:error];
   }
-
-  return [ZXQRCodeDecodedBitStreamParser decode:resultBytes length:totalBytes version:version ecLevel:ecLevel hints:hints error:error];
+  
+  return nil;
 }
 
 
@@ -133,14 +137,14 @@
  * correct the errors in-place using Reed-Solomon error correction.
  */
 - (BOOL)correctErrors:(NSMutableArray *)codewordBytes numDataCodewords:(int)numDataCodewords error:(NSError**)error {
-  int numCodewords = [codewordBytes count];
+  int numCodewords = (int)[codewordBytes count];
   int codewordsInts[numCodewords];
 
   for (int i = 0; i < numCodewords; i++) {
     codewordsInts[i] = [[codewordBytes objectAtIndex:i] charValue] & 0xFF;
   }
 
-  int numECCodewords = [codewordBytes count] - numDataCodewords;
+  int numECCodewords = (int)[codewordBytes count] - numDataCodewords;
   NSError* decodeError = nil;
   if (![rsDecoder decode:codewordsInts receivedLen:numCodewords twoS:numECCodewords error:&decodeError]) {
     if (decodeError.code == ZXReedSolomonError) {
