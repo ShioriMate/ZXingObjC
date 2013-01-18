@@ -85,27 +85,32 @@
   NSArray * codewords = [parser readCodewords];
   NSArray * dataBlocks = [ZXDataMatrixDataBlock dataBlocks:codewords version:version];
 
-  int dataBlocksCount = [dataBlocks count];
+  int dataBlocksCount = (int)[dataBlocks count];
 
   int totalBytes = 0;
   for (int i = 0; i < dataBlocksCount; i++) {
     totalBytes += [[dataBlocks objectAtIndex:i] numDataCodewords];
   }
-  unsigned char resultBytes[totalBytes];
-
-  for (int j = 0; j < dataBlocksCount; j++) {
-    ZXDataMatrixDataBlock * dataBlock = [dataBlocks objectAtIndex:j];
-    NSMutableArray * codewordBytes = dataBlock.codewords;
-    int numDataCodewords = [dataBlock numDataCodewords];
-    if (![self correctErrors:codewordBytes numDataCodewords:numDataCodewords error:error]) {
-      return nil;
+  
+  if ( totalBytes > 0 ) {
+    unsigned char resultBytes[totalBytes];
+    
+    for (int j = 0; j < dataBlocksCount; j++) {
+      ZXDataMatrixDataBlock * dataBlock = [dataBlocks objectAtIndex:j];
+      NSMutableArray * codewordBytes = dataBlock.codewords;
+      int numDataCodewords = [dataBlock numDataCodewords];
+      if (![self correctErrors:codewordBytes numDataCodewords:numDataCodewords error:error]) {
+        return nil;
+      }
+      for (int i = 0; i < numDataCodewords; i++) {
+        resultBytes[i * dataBlocksCount + j] = [[codewordBytes objectAtIndex:i] charValue];
+      }
     }
-    for (int i = 0; i < numDataCodewords; i++) {
-      resultBytes[i * dataBlocksCount + j] = [[codewordBytes objectAtIndex:i] charValue];
-    }
+    
+    return [ZXDataMatrixDecodedBitStreamParser decode:resultBytes length:totalBytes error:error];
   }
-
-  return [ZXDataMatrixDecodedBitStreamParser decode:resultBytes length:totalBytes error:error];
+  
+  return nil;
 }
 
 
@@ -114,12 +119,12 @@
  * correct the errors in-place using Reed-Solomon error correction.
  */
 - (BOOL)correctErrors:(NSMutableArray *)codewordBytes numDataCodewords:(int)numDataCodewords error:(NSError**)error {
-  int numCodewords = [codewordBytes count];
+  int numCodewords = (int)[codewordBytes count];
   int codewordsInts[numCodewords];
   for (int i = 0; i < numCodewords; i++) {
     codewordsInts[i] = [[codewordBytes objectAtIndex:i] charValue] & 0xFF;
   }
-  int numECCodewords = [codewordBytes count] - numDataCodewords;
+  int numECCodewords = (int)[codewordBytes count] - numDataCodewords;
 
   NSError *decodeError = nil;
   if (![rsDecoder decode:codewordsInts receivedLen:numCodewords twoS:numECCodewords error:&decodeError]) {
