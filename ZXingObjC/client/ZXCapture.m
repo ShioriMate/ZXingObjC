@@ -231,6 +231,7 @@ static bool isIPad();
     ZXAV({
       NSString* preset = 0;
       if (!preset &&
+          &AVCaptureSessionPresetiFrame960x540 != nil && // Check if preset exists on current iOS version
           NSClassFromString(@"NSOrderedSet") && // Proxy for "is this iOS 5" ...
           [UIScreen mainScreen].scale > 1 &&
           isIPad() &&
